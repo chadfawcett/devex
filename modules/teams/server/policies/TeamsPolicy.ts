@@ -46,7 +46,7 @@ class TeamsPolicy {
 					},
 					{
 						resources: '/api/teams/:teamId',
-						permissions: 'put'
+						permissions: 'put, delete'
 					}
 				]
 			}

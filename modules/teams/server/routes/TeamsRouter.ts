@@ -23,7 +23,8 @@ class TeamsRouter {
 		app.route('/api/teams/:teamId')
 			.all(TeamsPolicy.isAllowed)
 			.get(TeamsServerController.read)
-			.put(TeamsServerController.update);
+			.put(TeamsServerController.update)
+			.delete(TeamsServerController.delete);
 	}
 }
 

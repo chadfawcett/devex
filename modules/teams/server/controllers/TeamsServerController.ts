@@ -47,7 +47,7 @@ class TeamsServerController {
 		res.json(req.team);
 	};
 
-	// REST operation that updates an existing team
+	// REST operation that updates an existing team - requires admin
 	public update = (req, res) => {
 		// Ensure user is an admin for the given team
 		if (this.ensureAdmin(req.team, req.user, res)) {
@@ -89,6 +89,22 @@ class TeamsServerController {
 			});
 	};
 
+	// REST operation for deleting the given team - requires admin
+	public delete = (req, res) => {
+		if (this.ensureAdmin(req.team, req.user, res)) {
+			const team = req.team;
+			team.remove(err => {
+				if (err) {
+					return res.status(422).send({
+						message: CoreServerErrors.getErrorMessage(err)
+					});
+				} else {
+					res.json(team);
+				}
+			})
+		}
+	}
+
 	// Utility function that generates a search term for teams
 	// based on the user.  Admins get a full list of teams, but
 	// other users get only teams that have met membership requirements
@@ -103,9 +119,12 @@ class TeamsServerController {
 		}
 	};
 
+	// Internal function that takes a team and user and ensures
+	// that the user is an admin for that team.  Emits a 403 response
+	// if the user is not an admin
 	private ensureAdmin = (team, user, res) => {
 		if (user.roles.indexOf(`${team.code}-admin`) === -1 && user.roles.indexOf('admin') === -1) {
-			res.status(422).send({
+			res.status(403).send({
 				message: 'User Not Authorized'
 			});
 			return false;
