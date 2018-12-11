@@ -25,6 +25,7 @@ import OrgsRouter from '../../modules/orgs/server/routes/OrgsRouter';
 import ProgramsRouter from '../../modules/programs/server/routes/ProgramsRouter';
 import ProjectsRouter from '../../modules/projects/server/routes/ProjectsRouter';
 import ProposalsRouter from '../../modules/proposals/server/routes/ProposalsRouter';
+import TeamsRouter from '../../modules/teams/server/routes/TeamsRouter';
 import UserConfig from '../../modules/users/server/config/UserConfig';
 import AdminRouter from '../../modules/users/server/routes/AdminRouter';
 import config from '../ApplicationConfig';
@@ -286,6 +287,7 @@ class ExpressApplication {
 		CapabilitiesRouter.setupRoutes(app);
 		AdminRouter.setupRoutes(app);
 		ProposalsRouter.setupRoutes(app);
+		TeamsRouter.setupRoutes(app);
 		CoreRouter.setupRoutes(app);
 	};
 
