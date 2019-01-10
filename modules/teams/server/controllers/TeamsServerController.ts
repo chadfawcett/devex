@@ -1,9 +1,11 @@
 'use strict';
 
+import { Request, Response } from 'express';
 import _ from 'lodash';
 import CoreServerErrors from '../../../core/server/controllers/CoreServerErrors';
 import CoreServerHelpers from '../../../core/server/controllers/CoreServerHelpers';
-import TeamsModel from '../models/TeamsModel';
+import { IUserModel } from '../../../users/server/models/UserModel';
+import { ITeamsModel, TeamsModel } from '../models/TeamsModel';
 
 class TeamsServerController {
 	public static getInstance() {
@@ -12,96 +14,91 @@ class TeamsServerController {
 
 	private static instance: TeamsServerController;
 
-	private constructor() {}
+	private constructor() {
+		this.create = this.create.bind(this);
+		this.update = this.update.bind(this);
+		this.list = this.list.bind(this);
+	}
 
 	// REST operation for creating a new team
-	public create = (req, res) => {
+	public async create(req: Request, res: Response): Promise<void> {
 		const team = new TeamsModel(req.body);
 
 		// Generate a code for the team
-		TeamsModel.findUniqueCode(team.name, null, teamCode => {
-			team.code = teamCode;
+		team.code = await TeamsModel.schema.statics.findUniqueCode(team.name, null);
 
-			// Set the audit fields
-			CoreServerHelpers.applyAudit(team, req.user);
+		// Set audit fields
+		CoreServerHelpers.applyAudit(team, req.user);
 
-			team.save(err => {
-				if (err) {
-					return res.status(422).send({
-						message: CoreServerErrors.getErrorMessage(err)
-					});
-				} else {
-					// Update the user with appropriate roles and save
-					req.user.addRoles([team.code, `${team.code}-admin`]);
-					req.user.save();
+		// save team, update user, then return new team in response
+		try {
+			const newTeam = await team.save();
+			req.user.addRoles([team.code, `${team.code}-admin`]);
+			await req.user.save();
 
-					// Return the created team
-					res.json(team);
-				}
-			});
-		});
-	};
-
-	// REST operation that returns the queried team object
-	public read = (req, res) => {
-		res.json(req.team);
-	};
-
-	// REST operation that updates an existing team - requires admin
-	public update = (req, res) => {
-		// Ensure user is an admin for the given team
-		if (this.ensureAdmin(req.team, req.user, res)) {
-			const team = _.mergeWith(req.team, req.body, (objValue, srcValue) => {
-				if (_.isArray(objValue)) {
-					return srcValue;
-				}
-			});
-
-			// Set the audit fields
-			CoreServerHelpers.applyAudit(team, req.user);
-
-			// Save and return the updated team
-			team.save(err => {
-				if (err) {
-					return res.status(422).send({
-						message: CoreServerErrors.getErrorMessage(err)
-					});
-				} else {
-					res.json(team);
-				}
+			res.json(newTeam);
+		} catch (error) {
+			res.status(422).send({
+				message: CoreServerErrors.getErrorMessage(error)
 			});
 		}
-	};
+	}
+
+	// REST operation that returns the queried team object
+	public async read(req: Request, res: Response): Promise<void> {
+		res.json(req.team);
+	}
+
+	// REST operation that updates an existing team - requires admin
+	public async update(req: Request, res: Response): Promise<void> {
+		// If not admin, return as no-op
+		if (!this.ensureAdmin(req.team, req.user, res)) {
+			return;
+		}
+
+		const newTeamInfo = req.body;
+
+		// Set the audit fields
+		CoreServerHelpers.applyAudit(newTeamInfo, req.user);
+
+		try {
+			const updatedTeam = await TeamsModel.findOneAndUpdate({ code: req.team.code }, newTeamInfo, { new: true });
+			res.json(updatedTeam);
+		} catch (error) {
+			res.status(422).send({
+				message: CoreServerErrors.getErrorMessage(error)
+			});
+		}
+	}
 
 	// REST operation that returns a list of teams
 	// Returns all teams for admins, qualified teams for everyone else
-	public list = (req, res) => {
-		TeamsModel.find(this.getFilterTeamsSearchTerm(req.user))
-			.sort('created')
-			.exec((err, teams) => {
-				if (err) {
-					return res.status(422).send({
-						message: CoreServerErrors.getErrorMessage(err)
-					});
-				} else {
-					res.json(teams);
-				}
+	public async list(req: Request, res: Response): Promise<void> {
+		try {
+			const teams = await TeamsModel.find(this.getFilterTeamsSearchTerm(req.user))
+				.sort('created')
+				.exec();
+			res.json(teams);
+		} catch (error) {
+			res.status(422).send({
+				message: CoreServerErrors.getErrorMessage(error)
 			});
-	};
+		}
+	}
 
 	// REST operation for deleting the given team - requires admin
-	public delete = (req, res) => {
-		if (this.ensureAdmin(req.team, req.user, res)) {
-			const team = req.team;
-			team.remove(err => {
-				if (err) {
-					return res.status(422).send({
-						message: CoreServerErrors.getErrorMessage(err)
-					});
-				} else {
-					res.json(team);
-				}
-			})
+	public async delete(req: Request, res: Response): Promise<void> {
+		if (!this.ensureAdmin(req.team, req.user, res)) {
+			return;
+		}
+
+		try {
+			const removedTeam = await req.team.remove();
+			res.json(removedTeam);
+		} catch (error) {
+			res.status(422).send({
+				message: CoreServerErrors.getErrorMessage(error)
+			});
 		}
 	}
 
@@ -109,21 +106,21 @@ class TeamsServerController {
 	// based on the user.  Admins get a full list of teams, but
 	// other users get only teams that have met membership requirements
 	// or teams that they are an admin/member of
-	private getFilterTeamsSearchTerm = user => {
-		if (user && user.roles.indexOf('admin') !== -1) {
+	private getFilterTeamsSearchTerm(user: IUserModel): any {
+		if (user && user.roles.includes('admin')) {
 			return {};
 		} else {
 			return {
 				$or: [{ membershipRequirementsMet: true }, { admins: { $in: user } }, { members: { $in: user } }]
 			};
 		}
-	};
+	}
 
 	// Internal function that takes a team and user and ensures
 	// that the user is an admin for that team.  Emits a 403 response
 	// if the user is not an admin
-	private ensureAdmin = (team, user, res) => {
-		if (user.roles.indexOf(`${team.code}-admin`) === -1 && user.roles.indexOf('admin') === -1) {
+	private ensureAdmin(team: ITeamsModel, user: IUserModel, res: Response): boolean {
+		if (!user.roles.includes(`${team.code}-admin`) && !user.roles.includes('admin')) {
 			res.status(403).send({
 				message: 'User Not Authorized'
 			});
@@ -131,7 +128,7 @@ class TeamsServerController {
 		} else {
 			return true;
 		}
-	};
+	}
 }
 
 export default TeamsServerController.getInstance();

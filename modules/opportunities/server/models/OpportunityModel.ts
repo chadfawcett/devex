@@ -6,7 +6,7 @@ import { IOpportunity } from '../../shared/IOpportunityDTO';
 
 export interface IOpportunityModel extends IOpportunity, Document {
 	_id: any;
-	findUniqueCode(title: string, suffix: string, callback: any): string;
+	findUniqueCode(title: string, suffix: string): Promise<string>;
 }
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -289,8 +289,8 @@ OpportunitySchema.virtual('implementationEndDateDisplay').get(function() {
 	return dayNames[dt.getDay()] + ', ' + monthNames[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
 });
 
-export const OpportunityModel: Model<IOpportunityModel> = model<IOpportunityModel>('Opportunity', OpportunitySchema);
-
-OpportunitySchema.statics.findUniqueCode = (title, suffix, callback) => {
-	return CoreServerHelpers.modelFindUniqueCode(OpportunityModel, 'opp', title, suffix, callback);
+OpportunitySchema.statics.findUniqueCode = async (title: string, suffix: string): Promise<string> => {
+	return await CoreServerHelpers.modelFindUniqueCode(OpportunityModel, 'opp', title, suffix);
 };
+
+export const OpportunityModel: Model<IOpportunityModel> = model<IOpportunityModel>('Opportunity', OpportunitySchema);

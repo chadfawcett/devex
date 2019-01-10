@@ -25,7 +25,9 @@ class OpportunitiesServerController {
 
 	private sendMessages = MessagesServerController.sendMessages;
 
-	private constructor() {}
+	private constructor() {
+		this.create = this.create.bind(this);
+	}
 
 	// Return a list of all opportunity members. this means all members NOT
 	// including users who have requested access and are currently waiting
@@ -52,36 +54,28 @@ class OpportunitiesServerController {
 
 	// Create a new opportunity. the user doing the creation will be set as the
 	// administrator
-	public create = (req, res) => {
+	public async create(req: Request, res: Response): Promise<void> {
 		const opportunity = new OpportunityModel(req.body);
-		//
+
 		// set the code, this is used setting roles and other stuff
-		//
-		OpportunityModel.schema.statics.findUniqueCode(opportunity.name, null, newcode => {
-			opportunity.code = newcode;
-			//
-			// set the audit fields so we know who did what when
-			//
-			CoreServerHelpers.applyAudit(opportunity, req.user);
-			//
-			// update phase information
-			//
-			this.setPhases(opportunity);
-			//
-			// save and return
-			//
-			opportunity.save(err => {
-				if (err) {
-					return res.status(422).send({
-						message: CoreServerErrors.getErrorMessage(err)
-					});
-				} else {
-					this.setOpportunityAdmin(opportunity, req.user);
-					req.user.save();
-					res.json(opportunity);
-				}
+		const oppCode = await OpportunityModel.schema.statics.findUniqueCode(opportunity.name, null);
+		opportunity.code = oppCode;
+
+		// set the audit fields so we know who did what when
+		CoreServerHelpers.applyAudit(opportunity, req.user);
+
+		// update phase information
+		this.setPhases(opportunity);
+
+		try {
+			const newOpportunity = await opportunity.save();
+			this.setOpportunityAdmin(newOpportunity, req.user);
+			res.json(newOpportunity);
+		} catch (error) {
+			res.status(422).send({
+				message: CoreServerErrors.getErrorMessage(error)
 			});
-		});
+		}
 	};
 
 	// Update the document, make sure to apply audit. We don't mess with the

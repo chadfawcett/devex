@@ -2,11 +2,12 @@
 
 // A model representing a team of government users
 
-import { Model, model, Schema } from 'mongoose';
-import ITeamsDocument from '../interfaces/ITeamDocument';
+import { Document, Model, model, Schema } from 'mongoose';
+import CoreServerHelpers from '../../../core/server/controllers/CoreServerHelpers';
+import { ITeam } from '../../shared/ITeamDTO';
 
-interface ITeamsModel extends Model<ITeamsDocument> {
-	findUniqueCode(name: string, suffix: string, callback: any): string;
+export interface ITeamsModel extends ITeam, Document {
+	findUniqueCode(name: string, suffix: string): Promise<string>;
 }
 
 // MongoDB schema for the team
@@ -47,35 +48,10 @@ const TeamSchema = new Schema(
 	{ usePushEach: true }
 );
 
-// Utility function for generating a unique code for the team
-TeamSchema.statics.findUniqueCode = (name, suffix, callBack) => {
-	const possible =
-		'team-' +
-		name
-			.toLowerCase()
-			.replace(/\W/g, '-')
-			.replace(/-+/, '-') +
-		(suffix || '');
-
-	this.findOne(
-		{
-			code: possible
-		},
-		(err, user) => {
-			if (!err) {
-				if (!user) {
-					callBack(possible);
-				} else {
-					return this.findUniqueCode(name, (suffix || 0) + 1, callBack);
-				}
-			} else {
-				callBack(null);
-			}
-		}
-	);
-};
-
 // Export a model of the team
-const TeamsModel: ITeamsModel = model<ITeamsDocument, ITeamsModel>('Team', TeamSchema);
+export const TeamsModel: Model<ITeamsModel> = model<ITeamsModel>('Team', TeamSchema);
 
-export default TeamsModel;
+// Utility function for generating a unique code for the team
+TeamSchema.statics.findUniqueCode = async (name: string, suffix: string): Promise<string> => {
+	return await CoreServerHelpers.modelFindUniqueCode(TeamsModel, 'team', name, suffix);
+};

@@ -4,6 +4,7 @@
 import http from 'http';
 import https from 'https';
 import _ from 'lodash';
+import { Document, Model } from 'mongoose';
 import config from '../../../../config/ApplicationConfig';
 import CoreServerErrors from './CoreServerErrors';
 
@@ -179,32 +180,25 @@ class CoreServerHelpers {
 		return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
 	};
 
-	public modelFindUniqueCode = (model, prefix, title, suffix, callback) => {
-		prefix = prefix || '';
+	public async modelFindUniqueCode(model: Model<Document>, prefix: string, title: string, suffix: string): Promise<string> {
+
+		const newPrefix = prefix || '';
 		const possible =
-			prefix +
+			newPrefix +
 			'-' +
 			title
 				.toLowerCase()
 				.replace(/\W/g, '-')
 				.replace(/-+/, '-') +
 			(suffix || '');
-		model.findOne(
-			{
-				code: possible
-			},
-			(err, result) => {
-				if (!err) {
-					if (!result) {
-						callback(possible);
-					} else {
-						return model.findUniqueCode(title, (suffix || 0) + 1, callback);
-					}
-				} else {
-					callback(null);
-				}
-			}
-		);
+
+		const foundDocument = await model.findOne({ code: possible });
+		if (!foundDocument) {
+			return possible;
+		} else {
+			const newSuffix = suffix ? (parseInt(suffix, 10) + 1).toString() : '1';
+			return await this.modelFindUniqueCode(model, newPrefix, title, newSuffix);
+		}
 	};
 
 	public soundex = s => {

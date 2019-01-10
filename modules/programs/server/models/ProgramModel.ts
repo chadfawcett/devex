@@ -27,8 +27,9 @@ const ProgramSchema = new Schema(
 	{ usePushEach: true }
 );
 
-ProgramSchema.statics.findUniqueCode = function(title, suffix, callback) {
-	return CoreServerHelpers.modelFindUniqueCode(this, 'pro', title, suffix, callback);
+ProgramSchema.statics.findUniqueCode = async (title: string, suffix: string, callback): Promise<void> => {
+	const uniqueCode = await CoreServerHelpers.modelFindUniqueCode(this, 'pro', title, suffix);
+	callback(uniqueCode);
 }
 
 export const ProgramModel: Model<IProgramModel> = model<IProgramModel>('Program', ProgramSchema);

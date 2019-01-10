@@ -17,7 +17,7 @@ const _ = require('lodash'),
 const paths = require('./paths');
 
 const tsProject = ts.createProject({
-	target: 'es2015',
+	target: 'esnext',
 	module: 'commonjs',
 	moduleResolution: 'node',
 	sourceMap: true,

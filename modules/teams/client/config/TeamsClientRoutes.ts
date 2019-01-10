@@ -1,6 +1,7 @@
 'use strict';
 
 import angular from 'angular';
+import { ITeamsService } from '../services/TeamsService';
 
 (() => {
 	angular
@@ -26,8 +27,8 @@ import angular from 'angular';
 					label: 'All Teams'
 				},
 				resolve: {
-					teams: ['TeamsService', (TeamsService) => {
-						return TeamsService.query();
+					teams: ['TeamsService', async (TeamsService: ITeamsService) => {
+						return await TeamsService.list().$promise;
 					}]
 				},
 				controller: 'TeamsListController',
@@ -58,7 +59,7 @@ import angular from 'angular';
 
 			// Route for editing an individual team
 			.state('teams.edit', {
-				url: '/:projectId/edit',
+				url: '/:teamId/edit',
 				templateUrl: '/modules/teams/client/views/team-edit.html',
 				data: {
 					roles: ['admin', 'gov'],
@@ -93,9 +94,12 @@ import angular from 'angular';
 					parent: 'teams.list'
 				},
 				resolve: {
-					editing: () => false
+					editing: () => false,
+					team: ['TeamsService', (TeamsService: ITeamsService) => {
+						return new TeamsService();
+					}]
 				},
-				controller: 'TeamsEditController',
+				controller: 'TeamEditController',
 				controllerAs: '$ctrl'
 			})
 		}])

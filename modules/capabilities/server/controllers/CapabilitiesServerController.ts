@@ -22,29 +22,21 @@ class CapabilitiesServerController {
 	}
 
 	// Create a new capability.
-	public create(req: Request, res: Response): void {
+	public async create(req: Request, res: Response): Promise<void> {
 		const capability = new CapabilityModel(req.body);
 
-		// set the code, this is used for setting roles and other stuff
-		CapabilityModel.schema.statics.findUniqueCode(capability.name, null, (newcode: string) => {
-			capability.code = newcode;
-
-			// save
-			this.saveDocument(capability, res);
-		});
+		// set the code, this is used for setting roles and other stuff, then save
+		capability.code = await CapabilityModel.schema.statics.findUniqueCode(capability.name);
+		this.saveDocument(capability, res);
 	};
 
 	// Create a new capability skill.
-	public skillCreate(req: Request, res: Response): void {
+	public async skillCreate(req: Request, res: Response): Promise<void> {
 		const capabilitySkill = new CapabilitySkillModel(req.body);
 
-		// set the code, this is used for setting roles and other stuff
-		CapabilitySkillModel.schema.statics.findUniqueCode(capabilitySkill.name, null, (newcode: string) => {
-			capabilitySkill.code = newcode;
-
-			// save
-			this.saveDocument(capabilitySkill, res);
-		});
+		// set the code, this is used for setting roles and other stuff, then save
+		capabilitySkill.code = await CapabilitySkillModel.schema.statics.findUniqueCode(capabilitySkill.name, null)
+		this.saveDocument(capabilitySkill, res);
 	};
 
 	// This just takes the already queried object and pass it back

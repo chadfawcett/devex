@@ -6,7 +6,7 @@ import { ICapability } from '../../shared/ICapabilityDTO';
 
 export interface ICapabilityModel extends ICapability, Document {
 	_id: any;
-	findUniqueCode(title: string, suffix: string, callback: any): string;
+	findUniqueCode(title: string, suffix: string): Promise<string>;
 }
 
 const CapabilitySchema = new Schema(
@@ -27,8 +27,8 @@ const CapabilitySchema = new Schema(
 	{ usePushEach: true }
 );
 
-CapabilitySchema.statics.findUniqueCode = (title, suffix, callback) => {
-	return CoreServerHelpers.modelFindUniqueCode(CapabilityModel, 'capability', title, suffix, callback);
+CapabilitySchema.statics.findUniqueCode = async (title: string, suffix: string): Promise<string> => {
+	return await CoreServerHelpers.modelFindUniqueCode(CapabilityModel, 'capability', title, suffix);
 };
 
 export const CapabilityModel: Model<ICapabilityModel> = model<ICapabilityModel>('Capability', CapabilitySchema);
